@@ -73,6 +73,38 @@ router.put("/actualizar/:dni", async (req, res) => {
 
 // backend/routes/students.js
 
+router.post("/agregar-pago/historial/:dni", async (req, res) => {
+  try {
+    const dni = req.params.dni;
+    const { amount } = req.body;
+    // Buscar el estudiante por DNI
+    const student = await Student.findOne({ dni: dni });
+
+    if (!student) {
+      return res.status(404).json({ error: "Estudiante no encontrado" });
+    }
+    // Agregar el pago al historial
+    const paymentDate = new Date();
+    student.paymentHistory.push({ paymentDate, amount });
+
+    await student.save()
+    res.json({
+      success: true,
+      message: "Pago agregado exitosamente",
+      student,
+    });
+  } catch (err) {
+    res.status(500).json({
+      success: false,
+      error: "Error al agregar el pago: " + err.message,
+    });
+  }
+});
+
+
+
+
+
 router.post("/agregar-pago/:dni", async (req, res) => {
   try {
     const dni = req.params.dni;
@@ -124,6 +156,11 @@ router.post("/agregar-pago/:dni", async (req, res) => {
       student.paymentDueDate = calculateNextDueDate(student.joinDate);
     }
 
+    console.log("Fecha de Ingreso:", student.joinDate);
+    console.log("fecha pago", paymentDate);
+
+    console.log("Nuevo vencimiento:", student.paymentDueDate);
+
     // Guardar los cambios
     await student.save();
 
@@ -131,6 +168,9 @@ router.post("/agregar-pago/:dni", async (req, res) => {
       success: true,
       message: "Pago agregado exitosamente",
       student,
+      fechaIngreso: student.joinDate,
+      fechaPago: paymentDate,
+      nuevoVencimiento: student.paymentDueDate,
     });
   } catch (err) {
     res.status(500).json({
