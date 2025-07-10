@@ -3,14 +3,14 @@ const mongoose = require("mongoose");
 
 const studentSchema = new mongoose.Schema({
   dni: { type: String, required: true, unique: true },
-  medicamento: { type: String, required: true, default: "Ninguno" },
-  patologias: { type: String, required: true, default: "Ninguna" },
+  medicamento: { type: String, default: "Ninguno" },
+  patologias: { type: String, default: "Ninguna" },
   joinDate: { type: Date, default: Date.now },
   name: { type: String },
   lastName: { type: String },
   email: { type: String, default: "" },
-  phone: { type: String, required: true, default: "" },
-  birthDate: { type: String, required: true, default: "" },
+  phone: { type: String, default: "" },
+  birthDate: { type: String,  default: "" },
   activo: { type: Boolean, default: true },
   planType: { type: String },
   asistencias: [{ type: Date }],
