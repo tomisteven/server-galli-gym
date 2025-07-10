@@ -140,7 +140,7 @@ router.put("/actualizar/:dni", async (req, res) => {
   }
 }); */
 
- router.post("/agregar-pago/:dni", async (req, res) => {
+router.post("/agregar-pago/:dni", async (req, res) => {
   try {
     const dni = req.params.dni;
     const { amount } = req.body;
@@ -239,6 +239,25 @@ router.get("/ingresa/:dni", async (req, res) => {
     res.status(500).json({
       success: false,
       error: "Error al registrar ingreso: " + err.message,
+    });
+  }
+});
+
+router.delete("/eliminar/:dni", async (req, res) => {
+  try {
+    const dni = req.params.dni;
+    const deletedStudent = await Student.findOneAndDelete({ dni: dni });
+    if (!deletedStudent) {
+      return res.status(404).json({ error: "Estudiante no encontrado" });
+    }
+    res.json({
+      success: true,
+      message: `Estudiante ${deletedStudent.name} ${deletedStudent.lastName} eliminado exitosamente`,
+    });
+  } catch (err) {
+    res.status(500).json({
+      success: false,
+      error: "Error al eliminar el estudiante: " + err.message,
     });
   }
 });
