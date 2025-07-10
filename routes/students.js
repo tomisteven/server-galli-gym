@@ -71,7 +71,76 @@ router.put("/actualizar/:dni", async (req, res) => {
   }
 });
 
-router.post("/agregar-pago/:dni", async (req, res) => {
+// backend/routes/students.js
+
+/* router.post("/agregar-pago/:dni", async (req, res) => {
+  try {
+    const dni = req.params.dni;
+    const { amount } = req.body;
+
+    // Buscar el estudiante por DNI
+    const student = await Student.findOne({ dni: dni });
+    if (!student) {
+      return res.status(404).json({ error: "Estudiante no encontrado" });
+    }
+
+    // Agregar el pago al historial
+    const paymentDate = new Date();
+    student.paymentHistory.push({ paymentDate, amount });
+
+    // Calcular nuevo vencimiento manteniendo el día original
+    const calculateNextDueDate = (currentDueDate) => {
+      const nextDueDate = new Date(currentDueDate);
+
+      // Obtener el día original del mes
+      const originalDay = nextDueDate.getDate();
+
+      // Sumar un mes
+      nextDueDate.setMonth(nextDueDate.getMonth() + 1);
+
+      // Ajustar si el nuevo mes tiene menos días
+      const daysInNextMonth = new Date(
+        nextDueDate.getFullYear(),
+        nextDueDate.getMonth() + 1,
+        0
+      ).getDate();
+
+      // Si el día original es mayor que los días del próximo mes, usar el último día
+      if (originalDay > daysInNextMonth) {
+        nextDueDate.setDate(daysInNextMonth);
+      } else {
+        nextDueDate.setDate(originalDay);
+      }
+
+      return nextDueDate;
+    };
+
+    // Calcular nuevo vencimiento
+    if (student.paymentDueDate) {
+      // Si ya existe una fecha de vencimiento, usarla como base
+      student.paymentDueDate = calculateNextDueDate(student.paymentDueDate);
+    } else {
+      // Si es el primer pago, usar la fecha de ingreso como base
+      student.paymentDueDate = calculateNextDueDate(student.joinDate);
+    }
+
+    // Guardar los cambios
+    await student.save();
+
+    res.json({
+      success: true,
+      message: "Pago agregado exitosamente",
+      student,
+    });
+  } catch (err) {
+    res.status(500).json({
+      success: false,
+      error: "Error al agregar el pago: " + err.message,
+    });
+  }
+}); */
+
+ router.post("/agregar-pago/:dni", async (req, res) => {
   try {
     const dni = req.params.dni;
     const { amount } = req.body;
@@ -84,9 +153,9 @@ router.post("/agregar-pago/:dni", async (req, res) => {
     const paymentDate = new Date();
     student.paymentHistory.push({ paymentDate, amount });
     // Actualizar la fecha de vencimiento del pago
-    const nextDueDate = new Date(paymentDate);
-    nextDueDate.setMonth(nextDueDate.getMonth() + 1); // Sumar un mes
-    student.paymentDueDate = nextDueDate;
+    //const nextDueDate = new Date(paymentDate);
+    //nextDueDate.setMonth(nextDueDate.getMonth() + 1); // Sumar un mes
+    //student.paymentDueDate = nextDueDate;
     // Guardar los cambios
     await student.save();
     res.json({
