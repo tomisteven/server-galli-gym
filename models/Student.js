@@ -5,13 +5,13 @@ const studentSchema = new mongoose.Schema({
   medicamento: { type: String, required: true, default: "Ninguno" },
   patologias: { type: String, required: true, default: "Ninguna" },
 
-  name: { type: String, required: true },
-  lastName: { type: String, required: true },
-  email: { type: String, required: true },
+  name: { type: String },
+  lastName: { type: String },
+  email: { type: String },
   phone: { type: String, required: true },
-  birthDate: { type: Date, required: true },
+  birthDate: { type: String, required: true },
   activo: { type: Boolean, default: true },
-  planType: { type: String, required: true },
+  planType: { type: String },
   asistencias: [{ type: Date }],
   paymentHistory: [
     {
@@ -19,7 +19,7 @@ const studentSchema = new mongoose.Schema({
       amount: Number,
     },
   ],
-  paymentDueDate: { type: Date, required: true },
+  paymentDueDate: { type: Date },
 });
 
 module.exports = mongoose.model("Student", studentSchema);
