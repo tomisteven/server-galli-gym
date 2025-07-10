@@ -73,7 +73,7 @@ router.put("/actualizar/:dni", async (req, res) => {
 
 // backend/routes/students.js
 
-/* router.post("/agregar-pago/:dni", async (req, res) => {
+router.post("/agregar-pago/:dni", async (req, res) => {
   try {
     const dni = req.params.dni;
     const { amount } = req.body;
@@ -138,9 +138,9 @@ router.put("/actualizar/:dni", async (req, res) => {
       error: "Error al agregar el pago: " + err.message,
     });
   }
-}); */
+});
 
-router.post("/agregar-pago/:dni", async (req, res) => {
+/* router.post("/agregar-pago/:dni", async (req, res) => {
   try {
     const dni = req.params.dni;
     const { amount } = req.body;
@@ -169,19 +169,19 @@ router.post("/agregar-pago/:dni", async (req, res) => {
       error: "Error al agregar el pago: " + err.message,
     });
   }
-});
+}); */
 
 // Dar de baja a un estudiante por DNI
 router.delete("/baja/:dni", async (req, res) => {
   try {
     const dni = req.params.dni;
     // Buscar y eliminar el estudiante por DNI
-    const deletedStudent = await Student.findOne({ dni: dni });
+    const deletedStudent = await Student.findOneAndDelete({ dni: dni });
+    // Si no se encuentra el estudiante, retornar error 404
     if (!deletedStudent) {
       return res.status(404).json({ error: "Estudiante no encontrado" });
     }
-    deletedStudent.activo = false; // Marcar como inactivo
-    await deletedStudent.save();
+
     res.json({
       success: true,
       message: `Estudiante ${deletedStudent.name} ${deletedStudent.lastName} dado de baja`,
