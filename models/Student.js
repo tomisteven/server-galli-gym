@@ -1,10 +1,11 @@
+const { ja } = require("@faker-js/faker");
 const mongoose = require("mongoose");
 
 const studentSchema = new mongoose.Schema({
   dni: { type: String, required: true, unique: true },
   medicamento: { type: String, required: true, default: "Ninguno" },
   patologias: { type: String, required: true, default: "Ninguna" },
-
+  joinDate: { type: Date, default: Date.now },
   name: { type: String },
   lastName: { type: String },
   email: { type: String },
