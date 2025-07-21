@@ -1,13 +1,17 @@
 {
   "scripts": {
-  "start": "node server.js",
-  "dev": "nodemon server.js"
-},
+    "start": "node server.js",
+    "dev": "nodemon server.js"
+  },
   "dependencies": {
     "@faker-js/faker": "^9.9.0",
+    "cloudinary": "^2.7.0",
+    "connect-multiparty": "^2.2.0",
     "cors": "^2.8.5",
     "dotenv": "^17.0.1",
     "express": "^5.1.0",
+    "fs": "^0.0.1-security",
+    "fs-extra": "^11.3.0",
     "mongoose": "^8.16.1"
   },
   "devDependencies": {

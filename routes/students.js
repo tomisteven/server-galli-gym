@@ -2,6 +2,11 @@ const express = require("express");
 const router = express.Router();
 const Student = require("../models/Student");
 const { faker } = require("@faker-js/faker");
+const configureCloudinary = require("../cloudinary");
+const cloudinary = require("cloudinary").v2;
+const multipart = require("connect-multiparty");
+const md_upload = multipart({ uploadDir: "./uploads" });
+const fs = require("fs");
 
 // Ruta para obtener todos los estudiantes
 router.get("/", async (req, res) => {
@@ -13,14 +18,42 @@ router.get("/", async (req, res) => {
   }
 });
 
-router.post("/nuevo", async (req, res) => {
+router.post("/nuevo", [md_upload, configureCloudinary], async (req, res) => {
   try {
     const { dni } = req.body;
+
     // Verificar si el estudiante ya existe por DNI
     const existingStudent = await Student.findOne({ dni: dni });
     if (existingStudent) {
       return res.status(400).json({ error: "El estudiante ya existe" });
     }
+    // Verificar si se subió una imagen
+    if (req.files && req.files.image) {
+      const imageFile = req.files.image.path;
+
+      // Subir imagen a Cloudinary
+      const result = await cloudinary.uploader
+        .upload(imageFile, {
+          use_filename: true,
+          unique_filename: false,
+        })
+        .catch((error) => {
+          console.error("Error al subir la imagen a Cloudinary:", error);
+          return res.status(500).json({ error: "Error al subir la imagen" });
+        });
+      console.log("Imagen subida a Cloudinary:", result.secure_url);
+      req.body.image = result.secure_url; // Guardar URL de la imagen en el cuerpo de la solicitud
+
+      // Eliminar el archivo temporal
+      fs.unlink(imageFile, (err) => {
+        if (err) {
+          console.error("Error al eliminar el archivo temporal:", err);
+        } else {
+          console.log("Archivo temporal eliminado exitosamente");
+        }
+      });
+    }
+
     // Crear un nuevo estudiante
     const newStudent = new Student(req.body);
     // si no llega fecha de vencimiento se asigna la fecha de hoy mas 30 días
@@ -31,6 +64,7 @@ router.post("/nuevo", async (req, res) => {
     }
 
     await newStudent.save();
+
     res.status(201).json({
       success: true,
       message: "Estudiante creado exitosamente",
@@ -45,31 +79,56 @@ router.post("/nuevo", async (req, res) => {
 });
 
 // Actualizar estudiante por DNI
-router.put("/actualizar/:dni", async (req, res) => {
-  try {
-    const dni = req.params.dni;
-    const updatedData = req.body;
-    // Buscar y actualizar el estudiante por DNI
-    const updatedStudent = await Student.findOneAndUpdate(
-      { dni: dni },
-      updatedData,
-      { new: true, runValidators: true }
-    );
-    if (!updatedStudent) {
-      return res.status(404).json({ error: "Estudiante no encontrado" });
+router.put(
+  "/actualizar/:dni",
+  [md_upload, configureCloudinary],
+  async (req, res) => {
+    try {
+      const dni = req.params.dni;
+
+      //si llega imagen, subirla a Cloudinary
+      if (req.files && req.files.image) {
+        const imageFile = req.files.image.path;
+        const result = await cloudinary.uploader
+          .upload(imageFile, {
+            use_filename: true,
+            unique_filename: false,
+          })
+          .catch((error) => {
+            console.error("Error al subir la imagen a Cloudinary:", error);
+            return res.status(500).json({ error: "Error al subir la imagen" });
+          });
+        console.log("Imagen subida a Cloudinary:", result.secure_url);
+        req.body.image = result.secure_url; // Guardar URL de la imagen en el cuerpo de la solicitud
+
+        // Eliminar el archivo temporal
+        fs.unlinkSync(imageFile);
+        console.log("Archivo temporal eliminado exitosamente");
+      }
+
+      const updatedData = req.body;
+      // Buscar y actualizar el estudiante por DNI
+      const updatedStudent = await Student.findOneAndUpdate(
+        { dni: dni },
+        updatedData,
+        { new: true, runValidators: true }
+      );
+      if (!updatedStudent) {
+        return res.status(404).json({ error: "Estudiante no encontrado" });
+      }
+      res.json({
+        success: true,
+        message: "Estudiante actualizado exitosamente",
+        updatedStudent,
+      });
+    } catch (err) {
+      res.status(500).json({
+        success: false,
+        error: "Error al actualizar el estudiante: " + err.message,
+      });
     }
-    res.json({
-      success: true,
-      message: "Estudiante actualizado exitosamente",
-      updatedStudent,
-    });
-  } catch (err) {
-    res.status(500).json({
-      success: false,
-      error: "Error al actualizar el estudiante: " + err.message,
-    });
   }
-});
+);
 
 // backend/routes/students.js
 
@@ -87,7 +146,7 @@ router.post("/agregar-pago/historial/:dni", async (req, res) => {
     const paymentDate = new Date();
     student.paymentHistory.push({ paymentDate, amount });
 
-    await student.save()
+    await student.save();
     res.json({
       success: true,
       message: "Pago agregado exitosamente",
@@ -100,10 +159,6 @@ router.post("/agregar-pago/historial/:dni", async (req, res) => {
     });
   }
 });
-
-
-
-
 
 router.post("/agregar-pago/:dni", async (req, res) => {
   try {
