@@ -16,10 +16,10 @@ const studentSchema = new mongoose.Schema({
   planType: { type: String },
   asistencias: [{ type: Date }],
   paymentHistory: [
-    {
-      paymentDate: { type: Date, default: Date.now },
-      amount: Number,
-    },
+     {
+    paymentDate: { type: Date, required: true, default: Date.now },
+    amount: { type: Number, required: true },
+  },
   ],
   paymentDueDate: { type: Date },
 });

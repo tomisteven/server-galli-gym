@@ -11,7 +11,7 @@ const fs = require("fs");
 // Ruta para obtener todos los estudiantes
 router.get("/", async (req, res) => {
   try {
-    const students = await Student.find({});
+    const students = await Student.find({}).lean();
     res.json(students);
   } catch (err) {
     res.status(500).json({ error: "Error en el servidor" });
@@ -79,83 +79,133 @@ router.post("/nuevo", [md_upload, configureCloudinary], async (req, res) => {
 });
 
 // Actualizar estudiante por DNI
-router.put(
-  "/actualizar/:dni",
-  [md_upload, configureCloudinary],
-  async (req, res) => {
-    try {
-      const dni = req.params.dni;
+router.put("/actualizar/:dni", [md_upload, configureCloudinary], async (req, res) => {
+  try {
+    const dni = req.params.dni;
 
-      //si llega imagen, subirla a Cloudinary
-      if (req.files && req.files.image) {
-        const imageFile = req.files.image.path;
-        const result = await cloudinary.uploader
-          .upload(imageFile, {
-            use_filename: true,
-            unique_filename: false,
-          })
-          .catch((error) => {
-            console.error("Error al subir la imagen a Cloudinary:", error);
-            return res.status(500).json({ error: "Error al subir la imagen" });
-          });
-        console.log("Imagen subida a Cloudinary:", result.secure_url);
-        req.body.image = result.secure_url; // Guardar URL de la imagen en el cuerpo de la solicitud
+    // 🔄 Subir imagen a Cloudinary si viene una imagen en el request
+    if (req.files && req.files.image) {
+      const imageFile = req.files.image.path;
 
-        // Eliminar el archivo temporal
-        fs.unlinkSync(imageFile);
-        console.log("Archivo temporal eliminado exitosamente");
-      }
+      const result = await cloudinary.uploader
+        .upload(imageFile, {
+          use_filename: true,
+          unique_filename: false,
+        })
+        .catch((error) => {
+          console.error("Error al subir la imagen a Cloudinary:", error);
+          return res.status(500).json({ error: "Error al subir la imagen" });
+        });
 
-      const updatedData = req.body;
-      // Buscar y actualizar el estudiante por DNI
-      const updatedStudent = await Student.findOneAndUpdate(
-        { dni: dni },
-        updatedData,
-        { new: true, runValidators: true }
-      );
-      if (!updatedStudent) {
-        return res.status(404).json({ error: "Estudiante no encontrado" });
-      }
-      res.json({
-        success: true,
-        message: "Estudiante actualizado exitosamente",
-        updatedStudent,
-      });
-    } catch (err) {
-      res.status(500).json({
-        success: false,
-        error: "Error al actualizar el estudiante: " + err.message,
-      });
+      console.log("Imagen subida a Cloudinary:", result.secure_url);
+      req.body.image = result.secure_url;
+
+      // Borrar archivo temporal
+      fs.unlinkSync(imageFile);
+      console.log("Archivo temporal eliminado exitosamente");
     }
+
+    const updatedData = req.body;
+
+    // 🔍 Parsear paymentHistory si vino como string (por multipart/form-data)
+    if (typeof updatedData.paymentHistory === "string") {
+      try {
+        updatedData.paymentHistory = JSON.parse(updatedData.paymentHistory);
+      } catch (parseError) {
+        return res.status(400).json({
+          success: false,
+          error: "Formato inválido en paymentHistory. Debe ser un JSON válido.",
+        });
+      }
+    }
+
+    // ✅ Opcional: Validar manualmente que cada entrada tenga amount y paymentDate válidos
+    if (Array.isArray(updatedData.paymentHistory)) {
+      const isValid = updatedData.paymentHistory.every(entry =>
+        entry &&
+        typeof entry === "object" &&
+        typeof entry.amount === "number" &&
+        !isNaN(entry.amount) &&
+        new Date(entry.paymentDate).toString() !== "Invalid Date"
+      );
+      if (!isValid) {
+        return res.status(400).json({
+          success: false,
+          error: "paymentHistory contiene datos inválidos",
+        });
+      }
+    }
+
+    // 🔁 Actualizar estudiante
+    const updatedStudent = await Student.findOneAndUpdate(
+      { dni: dni },
+      updatedData,
+      { new: true, runValidators: true }
+    );
+
+    if (!updatedStudent) {
+      return res.status(404).json({ error: "Estudiante no encontrado" });
+    }
+
+    res.json({
+      success: true,
+      message: "Estudiante actualizado exitosamente",
+      updatedStudent,
+    });
+
+  } catch (err) {
+    console.error("Error interno:", err);
+    res.status(500).json({
+      success: false,
+      error: "Error al actualizar el estudiante: " + err.message,
+    });
   }
-);
+});
+
 
 // backend/routes/students.js
 
 router.post("/agregar-pago/historial/:dni", async (req, res) => {
   try {
     const dni = req.params.dni;
-    const { amount } = req.body;
-    // Buscar el estudiante por DNI
-    const student = await Student.findOne({ dni: dni });
+    let { amount } = req.body;
 
+    console.log("Datos recibidos:", { dni, amount });
+
+    // Validar monto
+    amount = parseFloat(amount);
+    if (isNaN(amount) || amount <= 0) {
+      return res.status(400).json({ error: "Monto inválido" });
+    }
+
+    const student = await Student.findOne({ dni });
     if (!student) {
       return res.status(404).json({ error: "Estudiante no encontrado" });
     }
-    // Agregar el pago al historial
-    const paymentDate = new Date();
-    student.paymentHistory.push({ paymentDate, amount });
+
+    // 🔥 Filtrar entradas corruptas (muy importante)
+    student.paymentHistory = student.paymentHistory.filter((entry) => {
+      return entry && typeof entry === "object" && entry.amount !== "";
+    });
+
+    // Agregar nuevo pago
+    student.paymentHistory.push({
+      paymentDate: new Date(),
+      amount,
+    });
 
     await student.save();
+
     res.json({
       success: true,
       message: "Pago agregado exitosamente",
       student,
     });
   } catch (err) {
+    console.error("Error interno:", err);
     res.status(500).json({
       success: false,
-      error: "Error al agregar el pago: " + err.message,
+      error: "Error al agregar el pagoooo: " + err.message,
     });
   }
 });
@@ -173,7 +223,13 @@ router.post("/agregar-pago/:dni", async (req, res) => {
 
     // Agregar el pago al historial
     const paymentDate = new Date();
-    student.paymentHistory.push({ paymentDate, amount });
+
+    const paymentHistoryEntry = {
+      paymentDate: paymentDate,
+      amount: parseFloat(amount),
+    };
+
+    student.paymentHistory.push(paymentHistoryEntry);
 
     // Calcular nuevo vencimiento manteniendo el día original
     const calculateNextDueDate = (currentDueDate) => {
