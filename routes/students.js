@@ -78,68 +78,68 @@ router.post("/nuevo", [md_upload, configureCloudinary], async (req, res) => {
   }
 });
 
-// Actualizar estudiante por DNI
 router.put("/actualizar/:dni", [md_upload, configureCloudinary], async (req, res) => {
   try {
     const dni = req.params.dni;
 
-    // 🔄 Subir imagen a Cloudinary si viene una imagen en el request
+    // 🔄 Subir imagen si viene una nueva
     if (req.files && req.files.image) {
       const imageFile = req.files.image.path;
 
-      const result = await cloudinary.uploader
-        .upload(imageFile, {
-          use_filename: true,
-          unique_filename: false,
-        })
-        .catch((error) => {
-          console.error("Error al subir la imagen a Cloudinary:", error);
-          return res.status(500).json({ error: "Error al subir la imagen" });
-        });
+      const result = await cloudinary.uploader.upload(imageFile, {
+        use_filename: true,
+        unique_filename: false,
+      });
 
       console.log("Imagen subida a Cloudinary:", result.secure_url);
       req.body.image = result.secure_url;
 
       // Borrar archivo temporal
       fs.unlinkSync(imageFile);
-      console.log("Archivo temporal eliminado exitosamente");
     }
 
-    const updatedData = req.body;
+    // 🔍 Crear un objeto solo con campos válidos para actualizar
+    const fieldsToUpdate = {};
+    const allowedFields = [
+      "name",
+      "lastName",
+      "email",
+      "phone",
+      "image",
+      "paymentHistory",
+      "asistencias",
+      "birthDate",
+      "activo",
+      "planType",
+      "medicamento",
+      "patologias",
+      "joinDate",
+      "paymentDueDate",
+      "dni", // Asegúrate de incluir el DNI si es necesario para la actualización
 
-    // 🔍 Parsear paymentHistory si vino como string (por multipart/form-data)
-    if (typeof updatedData.paymentHistory === "string") {
+      // agregá acá todos los campos que pueda tener tu modelo
+    ];
+
+    for (const key of allowedFields) {
+  if (req.body[key] !== undefined) {
+    if (key === "paymentHistory" || key === "asistencias") {
       try {
-        updatedData.paymentHistory = JSON.parse(updatedData.paymentHistory);
-      } catch (parseError) {
-        return res.status(400).json({
-          success: false,
-          error: "Formato inválido en paymentHistory. Debe ser un JSON válido.",
-        });
+        const parsed = JSON.parse(req.body[key]);
+        fieldsToUpdate[key] = parsed;
+      } catch {
+        console.warn(`Campo ${key} ignorado: formato inválido`);
+        continue;
       }
+    } else {
+      fieldsToUpdate[key] = req.body[key];
     }
+  }
+}
 
-    // ✅ Opcional: Validar manualmente que cada entrada tenga amount y paymentDate válidos
-    if (Array.isArray(updatedData.paymentHistory)) {
-      const isValid = updatedData.paymentHistory.every(entry =>
-        entry &&
-        typeof entry === "object" &&
-        typeof entry.amount === "number" &&
-        !isNaN(entry.amount) &&
-        new Date(entry.paymentDate).toString() !== "Invalid Date"
-      );
-      if (!isValid) {
-        return res.status(400).json({
-          success: false,
-          error: "paymentHistory contiene datos inválidos",
-        });
-      }
-    }
-
-    // 🔁 Actualizar estudiante
+    // ✅ Actualizar solo los campos válidos
     const updatedStudent = await Student.findOneAndUpdate(
-      { dni: dni },
-      updatedData,
+      { dni },
+      { $set: fieldsToUpdate },
       { new: true, runValidators: true }
     );
 
