@@ -27,6 +27,7 @@ router.post("/nuevo", [md_upload, configureCloudinary], async (req, res) => {
     if (existingStudent) {
       return res.status(400).json({ error: "El estudiante ya existe" });
     }
+
     // Verificar si se subió una imagen
     if (req.files && req.files.image) {
       const imageFile = req.files.image.path;
@@ -41,8 +42,9 @@ router.post("/nuevo", [md_upload, configureCloudinary], async (req, res) => {
           console.error("Error al subir la imagen a Cloudinary:", error);
           return res.status(500).json({ error: "Error al subir la imagen" });
         });
+
       console.log("Imagen subida a Cloudinary:", result.secure_url);
-      req.body.image = result.secure_url; // Guardar URL de la imagen en el cuerpo de la solicitud
+      req.body.image = result.secure_url; // Guardar URL de la imagen en el body
 
       // Eliminar el archivo temporal
       fs.unlink(imageFile, (err) => {
@@ -54,12 +56,27 @@ router.post("/nuevo", [md_upload, configureCloudinary], async (req, res) => {
       });
     }
 
+    // --- CORRECCIÓN DE FECHAS PARA EVITAR DESPLAZAMIENTO DE DÍA POR ZONA HORARIA ---
+    if (req.body.joinDate) {
+      const date = new Date(req.body.joinDate);
+      date.setHours(12, 0, 0, 0);
+      req.body.joinDate = date;
+    }
+
+    if (req.body.paymentDueDate) {
+      const date = new Date(req.body.paymentDueDate);
+      date.setHours(12, 0, 0, 0);
+      req.body.paymentDueDate = date;
+    }
+
     // Crear un nuevo estudiante
     const newStudent = new Student(req.body);
-    // si no llega fecha de vencimiento se asigna la fecha de hoy mas 30 días
+
+    // Si no llega fecha de vencimiento, se asigna la fecha de hoy + 30 días
     if (!newStudent.paymentDueDate) {
       const today = new Date();
       today.setDate(today.getDate() + 30);
+      today.setHours(12, 0, 0, 0);
       newStudent.paymentDueDate = today;
     }
 
@@ -77,6 +94,7 @@ router.post("/nuevo", [md_upload, configureCloudinary], async (req, res) => {
     });
   }
 });
+
 
 router.put("/actualizar/:dni", [md_upload, configureCloudinary], async (req, res) => {
   try {
