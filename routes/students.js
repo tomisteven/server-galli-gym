@@ -512,4 +512,51 @@ function generateFakeStudents(count) {
   return students;
 }
 
+
+router.get("/asistencias-por-dia/:fecha", async (req, res) => {
+  const { fecha } = req.params;
+
+  // validar formato básico YYYY-MM-DD
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha)) {
+    return res
+      .status(400)
+      .json({ error: "Formato de fecha inválido. Usar YYYY-MM-DD" });
+  }
+
+  try {
+    // Construyo el rango local en Argentina usando el offset -03:00
+    const start = new Date(`${fecha}T00:00:00-03:00`); // inicio del día en hora local
+    const end = new Date(`${fecha}T23:59:59.999-03:00`); // fin del día
+
+    // Query: al menos una asistencia dentro del rango
+    const students = await Student.find({
+      asistencias: {
+        $elemMatch: {
+          $gte: start,
+          $lte: end,
+        },
+      },
+    }).select("dni name lastName email asistencias");
+
+    // Para cada alumno, filtrar las asistencias que caen en ese día
+    const result = students.map((s) => {
+      const matching = (s.asistencias || []).filter(
+        (a) => a >= start && a <= end
+      );
+      return {
+        dni: s.dni,
+        name: s.name,
+        lastName: s.lastName,
+        email: s.email,
+        asistenciasEseDia: matching.map((d) => d.toISOString()), // podés formatear como prefieras
+      };
+    });
+
+    res.json({ fecha, cantidad: result.length, alumnos: result });
+  } catch (err) {
+    console.error("Error en /asistencias-por-dia:", err);
+    res.status(500).json({ error: "Error interno del servidor" });
+  }
+});
+
 module.exports = router;
