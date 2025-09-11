@@ -364,7 +364,7 @@ router.delete("/baja/:dni", async (req, res) => {
 });
 
 // Registrar ingreso de alumno
-router.get("/ingresa/:dni", async (req, res) => {
+/* router.get("/ingresa/:dni", async (req, res) => {
   try {
     const dni = req.params.dni;
     const student = await Student.findOne({ dni });
@@ -410,7 +410,60 @@ router.get("/ingresa/:dni", async (req, res) => {
       error: "Error al registrar ingreso: " + err.message,
     });
   }
+}); */
+// Registrar ingreso de alumno
+// Registrar ingreso de alumno
+router.get("/ingresa/:dni", async (req, res) => {
+  try {
+    const dni = req.params.dni;
+
+    // Buscar estudiante
+    const student = await Student.findOne({ dni });
+    if (!student) {
+      return res.status(404).json({ error: "Estudiante no encontrado" });
+    }
+
+    // Verificar si la cuota está vencida
+    const today = new Date();
+    if (student.paymentDueDate && student.paymentDueDate < today) {
+      return res.status(402).json({
+        error: "No se puede registrar ingreso: cuota vencida",
+        student
+      });
+    }
+
+    // Definir rango de hoy (00:00:00 a 23:59:59)
+    const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 0, 0, 0, 0);
+    const todayEnd = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59, 999);
+
+    // Intentar registrar el ingreso solo si no existe ya uno en el día
+    const result = await Student.updateOne(
+      {
+        dni,
+        asistencias: { $not: { $elemMatch: { $gte: todayStart, $lte: todayEnd } } }
+      },
+      { $push: { asistencias: new Date() } }
+    );
+
+    if (result.modifiedCount === 0) {
+      // Ya se registró un ingreso hoy o la condición falló
+      const studentAgain = await Student.findOne({ dni });
+      return res.status(400).json({ student: studentAgain, error: "Ya se registró un ingreso hoy" });
+    }
+
+    // Retornar el alumno actualizado
+    const updatedStudent = await Student.findOne({ dni });
+    res.json(updatedStudent);
+
+  } catch (err) {
+    res.status(500).json({
+      success: false,
+      error: "Error al registrar ingreso: " + err.message,
+    });
+  }
 });
+
+
 
 router.delete("/eliminar/:dni", async (req, res) => {
   try {
