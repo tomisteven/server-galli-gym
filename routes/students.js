@@ -464,6 +464,37 @@ router.get("/ingresa/:dni", async (req, res) => {
 });
 
 
+// Forzar ingreso de alumno (ignora validaciones de cuota y duplicados)
+router.post("/forzar-ingreso/:dni", async (req, res) => {
+  try {
+    const dni = req.params.dni;
+
+    // Buscar estudiante
+    const student = await Student.findOne({ dni });
+    if (!student) {
+      return res.status(404).json({ error: "Estudiante no encontrado" });
+    }
+
+    // Registrar ingreso forzado (fecha y hora actual con precisión completa)
+    const now = new Date();
+    student.asistencias.push(now);
+    await student.save();
+
+    res.json({
+      success: true,
+      message: "Ingreso forzado registrado correctamente",
+      student
+    });
+
+  } catch (err) {
+    res.status(500).json({
+      success: false,
+      error: "Error al forzar ingreso: " + err.message,
+    });
+  }
+});
+
+
 
 router.delete("/eliminar/:dni", async (req, res) => {
   try {
