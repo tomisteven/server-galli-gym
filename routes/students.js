@@ -200,6 +200,16 @@ router.get("/alumno/:dni", authRequired, parseDniParam, async (req, res) => {
   return res.json(student);
 });
 
+// Exportación completa (respaldo): TODOS los alumnos con TODOS los campos.
+router.get("/exportar", authRequired, async (req, res) => {
+  const students = await Student.find({}).sort({ createdAt: 1, _id: 1 }).lean();
+  return res.json({
+    exportado: new Date().toISOString(),
+    cantidad: students.length,
+    alumnos: students,
+  });
+});
+
 // Crear alumno.
 router.post("/nuevo", authRequired, uploadImageField, async (req, res) => {
   const dni = sanitizeDni(req.body.dni);
